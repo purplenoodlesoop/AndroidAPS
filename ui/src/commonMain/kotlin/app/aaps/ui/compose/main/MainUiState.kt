@@ -47,6 +47,8 @@ data class MainUiState(
     val runningModeRecordId: Long = 0, // DB record ID (for scene override detection)
     // Running TBR state for chip (HIGH / LOW / NONE)
     val tbrState: TbrState = TbrState.NONE,
+    // Rate of the running TBR in U/h, shown in the chip (null when none runs)
+    val tbrRate: Double? = null,
     // SMB enabled in APS preferences — drives a small triangle marker on the running-mode chip
     val smbEnabled: Boolean = false,
     // QuickWizard entries for treatment bottom sheet

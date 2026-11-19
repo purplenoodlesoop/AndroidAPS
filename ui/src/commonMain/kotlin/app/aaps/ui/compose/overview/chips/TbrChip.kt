@@ -1,15 +1,18 @@
 package app.aaps.ui.compose.overview.chips
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +36,12 @@ import app.aaps.core.ui.compose.stringResource
 import app.aaps.core.ui.compose.stringResourceOrNull
 
 /**
+ * Rate of the running temp basal in U/h, or null when none runs. Given by the main screen, so the
+ * value does not have to pass through every overview layout on its way to the chip.
+ */
+val LocalTbrRate = compositionLocalOf<Double?> { null }
+
+/**
  * @see TbrChipHighPreview
  * @see TbrChipLowPreview
  * @see TbrChipNonePreview
@@ -46,6 +55,8 @@ fun TbrChip(
     val iconColor = AapsTheme.elementColors.tempBasal
     val containerColor = iconColor.copy(alpha = 0.2f)
     val haptic = LocalHapticFeedback.current
+    // The rate is shown only while a temp basal runs. Without one the icon alone says "none".
+    val rate = LocalTbrRate.current.takeIf { state != TbrState.NONE }
 
     // Disable the clickable Surface's 48dp minimum interactive size so this content-width chip
     // isn't padded to 48dp and centered, which would inset it from the row's right edge
@@ -63,8 +74,8 @@ fun TbrChip(
                 .height(AapsSpacing.chipHeight * LocalAapsScale.current)
                 .semantics { stateDescription = tbrState }
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = AapsSpacing.medium)
             ) {
                 Icon(
@@ -73,6 +84,15 @@ fun TbrChip(
                     tint = iconColor,
                     modifier = Modifier.size(AapsSpacing.chipIconSize)
                 )
+                if (rate != null) {
+                    Text(
+                        text = stringResource(CoreUiStrings.pump_base_basal_rate, rate),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = AapsSpacing.small)
+                    )
+                }
             }
         }
     }

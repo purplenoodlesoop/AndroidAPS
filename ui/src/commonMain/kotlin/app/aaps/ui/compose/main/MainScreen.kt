@@ -24,6 +24,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,6 +65,7 @@ import app.aaps.ui.compose.maintenance.MaintenanceDialogs
 import app.aaps.ui.compose.maintenance.MaintenanceViewModel
 import app.aaps.ui.compose.manageSheet.ManageSheetState
 import app.aaps.ui.compose.manageSheet.ManageViewModel
+import app.aaps.ui.compose.overview.chips.LocalTbrRate
 import app.aaps.ui.compose.overview.EatReminderBanner
 import app.aaps.ui.compose.overview.OverviewScreen
 import app.aaps.ui.compose.overview.chips.ChipsViewModel
@@ -259,67 +261,69 @@ fun MainScreen(
                 // masterReachable for its own gating.)
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Main content
-                    OverviewScreen(
-                        profileName = uiState.profileName,
-                        profilePsId = uiState.profilePsId,
-                        isProfileModified = uiState.isProfileModified,
-                        profileProgress = uiState.profileProgress,
-                        tempTargetText = uiState.tempTargetText,
-                        tempTargetState = uiState.tempTargetState,
-                        tempTargetProgress = uiState.tempTargetProgress,
-                        tempTargetReason = uiState.tempTargetReason,
-                        tempTargetRecordId = uiState.tempTargetRecordId,
-                        runningMode = uiState.runningMode,
-                        runningModeText = uiState.runningModeText,
-                        runningModeRemaining = uiState.runningModeRemaining,
-                        runningModeProgress = uiState.runningModeProgress,
-                        runningModeRecordId = uiState.runningModeRecordId,
-                        tbrState = uiState.tbrState,
-                        smbEnabled = uiState.smbEnabled,
-                        isSimpleMode = uiState.isSimpleMode,
-                        calcProgress = calcProgress,
-                        graphViewModel = graphViewModel,
-                        chipsViewModel = chipsViewModel,
-                        manageViewModel = manageViewModel,
-                        statusViewModel = statusViewModel,
-                        statusLightsDef = statusLightsDef,
-                        onNavigate = onNavigate,
-                        onTbrChipClick = mainViewModel::showTbrInfo,
-                        onIobChipClick = chipsViewModel::showIobInfo,
-                        notifications = notifications,
-                        onDismissNotification = onDismissNotification,
-                        onNotificationActionClick = onNotificationActionClick,
-                        autoShowNotificationSheet = autoShowNotificationSheet,
-                        onAutoShowConsumed = onAutoShowConsumed,
-                        activeSceneState = activeSceneState,
-                        sceneExpired = sceneExpired,
-                        activeSceneChainTargetName = activeSceneChainTargetName,
-                        onEndScene = { mainViewModel.requestSceneDeactivation() },
-                        onDismissScene = { mainViewModel.dismissExpiredScene() },
-                        endSceneEnabled = masterReachable,
-                        commandsAllowed = masterOrPairedClient,
-                        formatDuration = mainViewModel::formatDuration,
-                        eatReminderBanner = {
-                            EatReminderBanner(
-                                state = eatReminderState,
-                                onStop = mainViewModel::stopEatReminder,
-                                onExtend = mainViewModel::extendEatReminder,
-                                // Like End scene: a client's buttons ask the master, which needs the connection.
-                                controlsEnabled = masterReachable
-                            )
-                        },
-                        paddingValues = contentPadding,
-                        fabBottomOffset = if (hasToolbar && showChrome) 56.dp else 0.dp,
-                        // In preview mode the bottom bar lies over the content instead of above it, so the end of each
-                        // column needs its height too. The height is kept once measured, so the columns do not move each
-                        // time the bars show and hide.
-                        overlaidBarsHeight = if (previewMode) with(density) { bottomBarHeightPx.toDp() } else 0.dp,
-                        bolusState = bolusState,
-                        pumpStatusText = pumpStatusText,
-                        queueStatusText = queueStatusText,
-                        isPumpCommunicating = isPumpCommunicating,
-                        onStopBolus = onStopBolus
-                    )
+                    CompositionLocalProvider(LocalTbrRate provides uiState.tbrRate) {
+                        OverviewScreen(
+                            profileName = uiState.profileName,
+                            profilePsId = uiState.profilePsId,
+                            isProfileModified = uiState.isProfileModified,
+                            profileProgress = uiState.profileProgress,
+                            tempTargetText = uiState.tempTargetText,
+                            tempTargetState = uiState.tempTargetState,
+                            tempTargetProgress = uiState.tempTargetProgress,
+                            tempTargetReason = uiState.tempTargetReason,
+                            tempTargetRecordId = uiState.tempTargetRecordId,
+                            runningMode = uiState.runningMode,
+                            runningModeText = uiState.runningModeText,
+                            runningModeRemaining = uiState.runningModeRemaining,
+                            runningModeProgress = uiState.runningModeProgress,
+                            runningModeRecordId = uiState.runningModeRecordId,
+                            tbrState = uiState.tbrState,
+                            smbEnabled = uiState.smbEnabled,
+                            isSimpleMode = uiState.isSimpleMode,
+                            calcProgress = calcProgress,
+                            graphViewModel = graphViewModel,
+                            chipsViewModel = chipsViewModel,
+                            manageViewModel = manageViewModel,
+                            statusViewModel = statusViewModel,
+                            statusLightsDef = statusLightsDef,
+                            onNavigate = onNavigate,
+                            onTbrChipClick = mainViewModel::showTbrInfo,
+                            onIobChipClick = chipsViewModel::showIobInfo,
+                            notifications = notifications,
+                            onDismissNotification = onDismissNotification,
+                            onNotificationActionClick = onNotificationActionClick,
+                            autoShowNotificationSheet = autoShowNotificationSheet,
+                            onAutoShowConsumed = onAutoShowConsumed,
+                            activeSceneState = activeSceneState,
+                            sceneExpired = sceneExpired,
+                            activeSceneChainTargetName = activeSceneChainTargetName,
+                            onEndScene = { mainViewModel.requestSceneDeactivation() },
+                            onDismissScene = { mainViewModel.dismissExpiredScene() },
+                            endSceneEnabled = masterReachable,
+                            commandsAllowed = masterOrPairedClient,
+                            formatDuration = mainViewModel::formatDuration,
+                            eatReminderBanner = {
+                                EatReminderBanner(
+                                    state = eatReminderState,
+                                    onStop = mainViewModel::stopEatReminder,
+                                    onExtend = mainViewModel::extendEatReminder,
+                                    // Like End scene: a client's buttons ask the master, which needs the connection.
+                                    controlsEnabled = masterReachable
+                                )
+                            },
+                            paddingValues = contentPadding,
+                            fabBottomOffset = if (hasToolbar && showChrome) 56.dp else 0.dp,
+                            // In preview mode the bottom bar lies over the content instead of above it, so the end of each
+                            // column needs its height too. The height is kept once measured, so the columns do not move each
+                            // time the bars show and hide.
+                            overlaidBarsHeight = if (previewMode) with(density) { bottomBarHeightPx.toDp() } else 0.dp,
+                            bolusState = bolusState,
+                            pumpStatusText = pumpStatusText,
+                            queueStatusText = queueStatusText,
+                            isPumpCommunicating = isPumpCommunicating,
+                            onStopBolus = onStopBolus
+                        )
+                    }
 
                     // Search results overlay
                     if (searchUiState.isSearchActive) {

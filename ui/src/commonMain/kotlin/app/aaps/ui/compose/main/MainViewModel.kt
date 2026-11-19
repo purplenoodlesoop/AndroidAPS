@@ -267,6 +267,7 @@ class MainViewModel(
             runningModeProgress = chip.runningModeProgress,
             runningModeRecordId = chip.runningModeRecordId,
             tbrState = chip.tbrState,
+            tbrRate = chip.tbrRate,
             smbEnabled = ev.smbEnabled,
             quickWizardItems = chip.quickWizardItems
         )
@@ -382,6 +383,7 @@ class MainViewModel(
             runningModeProgress = rmProgress,
             runningModeRecordId = if (rmExpired) 0 else rmData?.recordId ?: 0,
             tbrState = if (tbrExpired) TbrState.NONE else tbrData?.state ?: TbrState.NONE,
+            tbrRate = if (tbrExpired) null else tbrData?.rate,
             quickWizardItems = computeQuickWizardItems(rmData?.mode)
         )
     }
@@ -1057,5 +1059,6 @@ private data class ChipState(
     val runningModeProgress: Float = 0f,
     val runningModeRecordId: Long = 0,
     val tbrState: TbrState = TbrState.NONE,
+    val tbrRate: Double? = null,
     val quickWizardItems: List<QuickWizardItem> = emptyList()
 )

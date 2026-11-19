@@ -49,6 +49,7 @@ import app.aaps.ui.compose.manageSheet.ManageViewModel
 import app.aaps.ui.compose.overview.chips.ChipsViewModel
 import app.aaps.ui.compose.overview.graphs.GraphViewModel
 import app.aaps.ui.compose.overview.statusLights.StatusViewModel
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,6 +171,7 @@ internal class OverviewViewModelFixture(private val screen: AapsScreenFixture) {
         whenever(activePump.pumpDescription).thenReturn(pumpDescription)
         whenever(activePump.batteryLevel).thenReturn(MutableStateFlow<Int?>(null))
         whenever(activePump.reservoirLevel).thenReturn(MutableStateFlow(PumpInsulin(0.0)))
+        whenever(activePump.extendedStatus()).thenReturn(JsonObject(emptyMap()))
         whenever(pumpPlugin.pumpDescription).thenReturn(pumpDescription)
         whenever(pumpPlugin.batteryLevel).thenReturn(MutableStateFlow<Int?>(null))
         whenever(rxBus.toFlow(EventInitializationChanged::class)).thenReturn(emptyFlow())

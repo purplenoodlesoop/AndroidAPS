@@ -23,6 +23,10 @@ import app.aaps.core.interfaces.utils.TimeDiff
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.core.ui.CoreUiStrings
+import app.aaps.ui.UiStrings
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +75,9 @@ internal class StatusViewModelTest {
 
     private val teChanges = MutableSharedFlow<List<TE>>()
     private val reservoir = MutableStateFlow(PumpInsulin(10.0))
+
+    /** What the pump driver reports beside the common status. Empty unless a test fills it. */
+    private var extendedStatus = JsonObject(emptyMap())
 
     /** Refreshes that have started: each one reads the cannula change once. */
     private val started = AtomicInteger(0)
@@ -136,6 +143,36 @@ internal class StatusViewModelTest {
 
         assertThat(started.get()).isEqualTo(1)
         assertThat(viewModel.uiState.value.cannulaStatus?.level).isEqualTo(USAGE_TEXT)
+        screen.cancelAndJoin()
+    }
+
+    @Test
+    fun `the link voltage is shown when the pump driver reports one`() = runBlocking<Unit> {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        givenStatusData()
+        extendedStatus = buildJsonObject { put("RileyLinkBatteryVoltage", 3.09) }
+        whenever(rh.gs(eq(UiStrings.status_link_voltage), eq(3.09))).thenReturn("3.09 V")
+        val viewModel = newViewModel()
+
+        val screen = show(viewModel)
+        awaitValue(finished, 1)
+
+        val link = viewModel.uiState.value.linkStatus
+        assertThat(link?.level).isEqualTo("3.09 V")
+        assertThat(link?.compactAge).isFalse()
+        screen.cancelAndJoin()
+    }
+
+    @Test
+    fun `there is no link item when the pump driver reports no voltage`() = runBlocking<Unit> {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        givenStatusData()
+        val viewModel = newViewModel()
+
+        val screen = show(viewModel)
+        awaitValue(finished, 1)
+
+        assertThat(viewModel.uiState.value.linkStatus).isNull()
         screen.cancelAndJoin()
     }
 
@@ -233,6 +270,7 @@ internal class StatusViewModelTest {
         whenever(pump.pumpDescription).thenReturn(PumpDescription())
         whenever(pump.batteryLevel).thenReturn(MutableStateFlow<Int?>(null))
         whenever(pump.reservoirLevel).thenReturn(reservoir)
+        whenever(pump.extendedStatus()).thenAnswer { extendedStatus }
         val bgSource = mock<BgSource>()
         whenever(activePlugin.activeBgSource).thenReturn(bgSource)
         whenever(bgSource.sensorBatteryLevel).thenReturn(-1)

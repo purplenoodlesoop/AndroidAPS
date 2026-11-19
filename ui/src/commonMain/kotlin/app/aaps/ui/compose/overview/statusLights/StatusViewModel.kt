@@ -23,6 +23,10 @@ import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.interfaces.IntPreferenceKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.CoreUiStrings
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SettingsInputAntenna
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 import app.aaps.ui.UiStrings
 import app.aaps.core.ui.compose.StatusLevel
 import app.aaps.core.ui.compose.icons.IcCannulaChange
@@ -144,6 +148,7 @@ class StatusViewModel(
             val batteryStatus = if (!isPatchPump || pumpDescription.useHardwareLink) {
                 buildBatteryStatus()
             } else null
+            val linkStatus = buildLinkStatus()
 
             _uiState.update { state ->
                 state.copy(
@@ -158,6 +163,7 @@ class StatusViewModel(
                         )
                     } ?: cannulaStatus,
                     batteryStatus = batteryStatus,
+                    linkStatus = linkStatus,
                     showFill = pumpDescription.isRefillingCapable && isInitialized,
                     showPumpBatteryChange = pumpDescription.isBatteryReplaceable || pump.isBatteryChangeLoggingEnabled(),
                     isPatchPump = isPatchPump
@@ -227,7 +233,7 @@ class StatusViewModel(
             levelStatus = if (reservoirLevel > 0) getLevelStatus(reservoirLevel, IntKey.OverviewResWarning, IntKey.OverviewResCritical) else StatusLevel.UNSPECIFIED,
             levelPercent = -1f, // No progress bar - reservoir sizes vary by pump
             icon = IcPumpCartridge,
-            compactAge = !isPatchPump, // Overview: insulin age hidden for patch pumps
+            compactAge = false, // Overview: only the reservoir units are shown
         )
     }
 
@@ -288,9 +294,26 @@ class StatusViewModel(
             levelStatus = if (showLevel) getLevelStatus(batteryLevelValue, IntKey.OverviewBattWarning, IntKey.OverviewBattCritical) else StatusLevel.UNSPECIFIED,
             levelPercent = if (showLevel) 1f - (batteryLevelValue.toFloat() / 100f) else -1f,
             icon = IcPumpBattery,
-            compactAge = hasAge, // Overview: pbAge shown only if replaceable/logging
+            compactAge = false, // Overview: only the battery level is shown
             compactLevel = showLevel && useBatteryLevel, // hidden when no level value (e.g., AAPSCLIENT)
             expandedLevel = showLevel
+        )
+    }
+
+    /**
+     * The battery voltage of the radio link (OrangeLink), when the pump driver reports one in its
+     * extended status. The item has no age and no warning colour: the voltage where the link stops
+     * working is not known.
+     */
+    private fun buildLinkStatus(): StatusItem? {
+        val volts = (activePlugin.activePump.extendedStatus()[LINK_BATTERY_VOLTAGE] as? JsonPrimitive)?.doubleOrNull ?: return null
+        return StatusItem(
+            label = rh.gs(UiStrings.status_link_label),
+            age = "-",
+            level = rh.gs(UiStrings.status_link_voltage, volts),
+            icon = Icons.Filled.SettingsInputAntenna,
+            compactAge = false,
+            expandedLevel = false
         )
     }
 
@@ -329,5 +352,11 @@ class StatusViewModel(
             level <= warn     -> StatusLevel.WARNING
             else              -> StatusLevel.NORMAL
         }
+    }
+
+    private companion object {
+
+        /** The key the Medtronic driver uses in `Pump.extendedStatus` for the link battery voltage, in volts. */
+        const val LINK_BATTERY_VOLTAGE = "RileyLinkBatteryVoltage"
     }
 }

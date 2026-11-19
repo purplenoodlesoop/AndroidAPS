@@ -180,6 +180,7 @@ fun OverviewScreenSplit(
                     insulinStatus = statusState.insulinStatus,
                     cannulaStatus = statusState.cannulaStatus,
                     batteryStatus = statusState.batteryStatus,
+                    linkStatus = statusState.linkStatus,
                     showFill = statusState.showFill,
                     showPumpBatteryChange = statusState.showPumpBatteryChange,
                     commandsAllowed = commandsAllowed,

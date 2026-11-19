@@ -69,6 +69,7 @@ fun OverviewStatusSection(
     insulinStatus: StatusItem?,
     cannulaStatus: StatusItem?,
     batteryStatus: StatusItem?,
+    linkStatus: StatusItem? = null,
     showFill: Boolean,
     showPumpBatteryChange: Boolean,
     // The status-row action buttons (fill / sensor insert / battery change) open mutating screens — hidden on an
@@ -80,7 +81,7 @@ fun OverviewStatusSection(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val items = listOfNotNull(cannulaStatus, insulinStatus, sensorStatus, batteryStatus)
+    val items = listOfNotNull(cannulaStatus, insulinStatus, sensorStatus, batteryStatus, linkStatus)
     if (items.isEmpty()) return
     val compactItems = items.filter { it.compactAge || (it.compactLevel && it.level != null) }
 
@@ -248,10 +249,10 @@ private fun CompactStatusItem(item: StatusItem) {
     // values at once, so it speaks the worse of the two - saying both would be a mouthful on a chip
     // whose whole job is to be glanceable.
     val worstStatus = when {
-        item.ageStatus == StatusLevel.CRITICAL ||
+        (showAge && item.ageStatus == StatusLevel.CRITICAL) ||
             (showLevel && item.levelStatus == StatusLevel.CRITICAL) -> StatusLevel.CRITICAL
 
-        item.ageStatus == StatusLevel.WARNING ||
+        (showAge && item.ageStatus == StatusLevel.WARNING) ||
             (showLevel && item.levelStatus == StatusLevel.WARNING)  -> StatusLevel.WARNING
 
         else                                                        -> StatusLevel.NORMAL

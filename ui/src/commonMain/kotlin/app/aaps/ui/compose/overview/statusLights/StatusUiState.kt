@@ -11,6 +11,7 @@ data class StatusUiState(
     val insulinStatus: StatusItem? = null,
     val cannulaStatus: StatusItem? = null,
     val batteryStatus: StatusItem? = null,
+    val linkStatus: StatusItem? = null,
     val showFill: Boolean = false,
     val showPumpBatteryChange: Boolean = false,
     val isPatchPump: Boolean = false

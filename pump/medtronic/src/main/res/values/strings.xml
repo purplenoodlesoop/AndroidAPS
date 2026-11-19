@@ -8,7 +8,6 @@
     <string name="medtronic_serial_number">Pump Serial Number</string>
     <string name="medtronic_pump_type">Pump Type</string>
     <string name="medtronic_pump_frequency">Pump Frequency</string>
-    <string name="medtronic_pump_bolus_delay">Delay before Bolus is started (s)</string>
     <string name="medtronic_pump_max_bolus">Max Bolus on Pump (U)</string>
     <string name="medtronic_pump_max_basal">Max Basal on Pump (U/h)</string>
     <string name="medtronic_custom_action_wake_and_tune">Wake and Tune Up</string>
@@ -37,9 +36,6 @@
     <string name="medtronic_pump_type_754_ca">754 (CA Fw. &lt;= 2.7A)</string>
 
     <!-- Bolus delay entries -->
-    <string name="medtronic_bolus_delay_5s">5 s</string>
-    <string name="medtronic_bolus_delay_10s">10 s</string>
-    <string name="medtronic_bolus_delay_15s">15 s</string>
 
     <!-- MDT Fragment -->
     <string name="rl_battery_label">RileyLink Battery</string>

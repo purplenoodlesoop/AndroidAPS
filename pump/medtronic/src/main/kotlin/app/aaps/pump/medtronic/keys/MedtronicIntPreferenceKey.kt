@@ -30,19 +30,6 @@ enum class MedtronicIntPreferenceKey(
         min = 1,
         max = 25
     ),
-    BolusDelay(
-        key = "pref_medtronic_bolus_delay",
-        defaultValue = 10,
-        titleResId = R.string.medtronic_pump_bolus_delay,
-        preferenceType = PreferenceType.LIST,
-        entriesResIds = mapOf(
-            5 to R.string.medtronic_bolus_delay_5s,
-            10 to R.string.medtronic_bolus_delay_10s,
-            15 to R.string.medtronic_bolus_delay_15s
-        ),
-        min = 5,
-        max = 15
-    ),
     ;
 
     override val title: TextRef = TextRef.AndroidRes(titleResId)

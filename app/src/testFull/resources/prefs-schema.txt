@@ -393,7 +393,6 @@ patch_start_time|MedtrumLongNonKey|true
 patient_name|StringKey|true
 pp_ISF_weight|DoubleKey|true
 pref_medtronic_battery_type|MedtronicStringPreferenceKey|true
-pref_medtronic_bolus_delay|MedtronicIntPreferenceKey|true
 pref_medtronic_encoding|RileyLinkStringPreferenceKey|true
 pref_medtronic_frequency|MedtronicStringPreferenceKey|true
 pref_medtronic_max_basal|MedtronicIntPreferenceKey|true

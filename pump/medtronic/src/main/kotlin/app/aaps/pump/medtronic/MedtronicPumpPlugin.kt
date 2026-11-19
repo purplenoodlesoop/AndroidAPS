@@ -21,6 +21,7 @@ import app.aaps.core.interfaces.plugin.PluginDescription
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.pump.BlePreCheck
 import app.aaps.core.interfaces.pump.BolusProgressData
+import app.aaps.core.interfaces.pump.PumpInsulin
 import app.aaps.core.interfaces.pump.DetailedBolusInfo
 import app.aaps.core.interfaces.pump.Pump
 import app.aaps.core.interfaces.pump.PumpEnactResult
@@ -116,6 +117,7 @@ import java.util.Calendar
 import java.util.GregorianCalendar
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.floor
 import dev.zacsweers.metro.IntKey as MetroIntKey
 
 /**
@@ -631,7 +633,7 @@ class MedtronicPumpPlugin(
         return DateTimeUtil.toATechDate(timestamp)
     }
 
-    private var bolusDeliveryType = BolusDeliveryType.Idle
+    @Volatile private var bolusDeliveryType = BolusDeliveryType.Idle
 
     private enum class BolusDeliveryType {
         Idle,  //
@@ -676,8 +678,40 @@ class MedtronicPumpPlugin(
         scheduleNextRefresh(PumpDataRefreshType.PumpTime, 0)
     }
 
-    @Synchronized
     override fun deliverBolus(detailedBolusInfo: DetailedBolusInfo): PumpEnactResult {
+        val result = sendBolus(detailedBolusInfo)
+        // The wait is outside the lock of sendBolus, so the driver can still answer isBusy meanwhile.
+        if (result.success && result.enacted && detailedBolusInfo.bolusType !== BS.Type.SMB) {
+            showEstimatedBolusProgress(detailedBolusInfo.insulin)
+        }
+        return result
+    }
+
+    /**
+     * The pump does not report how much of a bolus it has delivered, so the progress is counted
+     * from the time since the pump accepted the command. The command queue shows it, and keeps the
+     * next command back until the pump is free again.
+     *
+     * The pump cannot stop a bolus over the radio. A stop request here only raises the alarm that
+     * says so and ends the display. The bolus goes on.
+     */
+    private fun showEstimatedBolusProgress(insulin: Double) {
+        val seconds = estimatedBolusSeconds(insulin)
+        var waited = 0
+        while (waited < seconds) {
+            if (bolusDeliveryType == BolusDeliveryType.CancelDelivery) {
+                bolusDeliveryType = BolusDeliveryType.Idle
+                uiInteraction.runAlarm(rh.gs(R.string.medtronic_cmd_cancel_bolus_not_supported), rh.gs(app.aaps.core.ui.R.string.warning), AlarmSound.BOLUS_ERROR)
+                return
+            }
+            SystemClock.sleep(1000)
+            waited += 1
+            bolusProgressData.updateProgress(PumpInsulin(estimatedBolusDelivered(insulin, waited, pumpDescription.bolusStep)))
+        }
+    }
+
+    @Synchronized
+    private fun sendBolus(detailedBolusInfo: DetailedBolusInfo): PumpEnactResult {
         aapsLogger.info(LTag.PUMP, "MedtronicPumpPlugin::deliverBolus - " + BolusDeliveryType.DeliveryPrepared)
         setRefreshButtonEnabled(false)
         if (detailedBolusInfo.insulin > medtronicPumpStatus.reservoirRemainingUnits) {
@@ -703,9 +737,6 @@ class MedtronicPumpPlugin(
             return setNotReachable(isBolus = true, success = true)
         }
 
-        // LOG.debug("MedtronicPumpPlugin::deliverBolus - Starting wait period.");
-        val sleepTime = preferences.get(MedtronicIntPreferenceKey.BolusDelay) * 1000
-        SystemClock.sleep(sleepTime.toLong())
         return if (bolusDeliveryType == BolusDeliveryType.CancelDelivery) {
             // LOG.debug("MedtronicPumpPlugin::deliverBolus - Delivery Canceled, before wait period.");
             setNotReachable(isBolus = true, success = true)
@@ -745,7 +776,7 @@ class MedtronicPumpPlugin(
                 preferences.inc(if (detailedBolusInfo.bolusType === BS.Type.SMB) MedtronicLongNonKey.SmbBoluses else MedtronicLongNonKey.StandardBoluses)
 
                 // calculate time for bolus and set driver to busy for that time
-                val bolusTime = (detailedBolusInfo.insulin * 42.0).toInt()
+                val bolusTime = estimatedBolusSeconds(detailedBolusInfo.insulin)
                 val time = now + bolusTime * 1000
                 busyTimestamps.add(time)
                 pumpEnactResultProvider().success(true).enacted(true).bolusDelivered(detailedBolusInfo.insulin)
@@ -1174,6 +1205,23 @@ class MedtronicPumpPlugin(
 
         private const val SECONDS_PER_HOUR = 60 * 60
 
+        /** The pump delivers a bolus at about 1.5 U per minute. 42 s per unit leaves a small margin. */
+        private const val BOLUS_SECONDS_PER_UNIT = 42.0
+
+        /** How long the pump needs to deliver a bolus of [insulin] units. */
+        internal fun estimatedBolusSeconds(insulin: Double): Int = (insulin * BOLUS_SECONDS_PER_UNIT).toInt()
+
+        /**
+         * How much of a bolus of [insulin] units the pump has probably delivered [waitedSeconds] after it
+         * accepted the command. Rounded down to the pump's [step], and never more than the bolus.
+         */
+        internal fun estimatedBolusDelivered(insulin: Double, waitedSeconds: Int, step: Double): Double {
+            val seconds = estimatedBolusSeconds(insulin)
+            if (seconds <= 0 || waitedSeconds >= seconds) return insulin
+            val part = insulin * waitedSeconds.coerceAtLeast(0) / seconds
+            return if (step > 0) floor(part / step + 1e-9) * step else part
+        }
+
         /** The time between two tune-ups that [connect] starts after a failed one. */
         private const val RETUNE_INTERVAL_MS = 10 * 60 * 1000L
         val pumpFreqValues = arrayOf<CharSequence>(RileyLinkTargetFrequency.MedtronicUS.key!!, RileyLinkTargetFrequency.MedtronicWorldWide.key!!)
@@ -1191,7 +1239,6 @@ class MedtronicPumpPlugin(
             MedtronicStringPreferenceKey.PumpFrequency,
             MedtronicIntPreferenceKey.MaxBasal,
             MedtronicIntPreferenceKey.MaxBolus,
-            MedtronicIntPreferenceKey.BolusDelay,
             RileyLinkStringPreferenceKey.Encoding,
             MedtronicStringPreferenceKey.BatteryType,
             RileylinkBooleanPreferenceKey.OrangeUseScanning,

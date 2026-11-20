@@ -272,8 +272,8 @@ private fun BolusProgressSection(
             }
         }
 
-        // Stop button (delivery in progress)
-        state.percent < 100 -> {
+        // Stop button (delivery in progress). Not shown when the pump driver says it cannot stop.
+        state.percent < 100 && state.stopDeliveryEnabled -> {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center

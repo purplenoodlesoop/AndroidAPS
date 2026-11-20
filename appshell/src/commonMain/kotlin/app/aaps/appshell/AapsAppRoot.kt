@@ -219,7 +219,9 @@ fun AapsAppRoot(
                         content(navController)
                     }
 
-                    BolusProgressOverlay(
+                    // On the phone that owns the pump the overview shows the progress in a small card,
+                    // so the screen stays free. A client keeps the modal dialog.
+                    if (config.AAPSCLIENT) BolusProgressOverlay(
                         bolusState = bolusState,
                         pumpStatus = pumpStatusBanner?.text ?: "",
                         queueStatus = pumpQueueStatus,

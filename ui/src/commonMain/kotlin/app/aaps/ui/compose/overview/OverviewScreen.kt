@@ -34,6 +34,7 @@ import app.aaps.core.ui.compose.TABLET_MIN_SW_DP
 import app.aaps.core.ui.compose.isLandscape
 import app.aaps.core.ui.compose.navigation.NavigationRequest
 import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
+import app.aaps.core.ui.compose.pump.BolusProgressBanner
 import app.aaps.core.ui.compose.pump.PumpActivityDialog
 import app.aaps.core.ui.compose.pump.PumpActivityFab
 import app.aaps.core.ui.compose.smallestScreenWidthDp
@@ -287,6 +288,16 @@ fun OverviewScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
+            )
+        }
+
+        if (bolusState != null && !bolusState.isSMB) {
+            BolusProgressBanner(
+                state = bolusState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(paddingValues)
+                    .padding(start = 16.dp, end = 72.dp, bottom = 72.dp + fabBottomOffset)
             )
         }
 

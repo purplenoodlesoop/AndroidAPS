@@ -742,6 +742,8 @@ class MedtronicPumpPlugin(
             setNotReachable(isBolus = true, success = true)
         } else try {
             bolusDeliveryType = BolusDeliveryType.Delivering
+            // From here the bolus cannot be stopped from the phone, so the stop button goes away.
+            bolusProgressData.enableStopDelivery(false)
 
             // LOG.debug("MedtronicPumpPlugin::deliverBolus - Start delivery");
             val responseTask = rileyLinkMedtronicService?.medtronicUIComm?.executeCommand(

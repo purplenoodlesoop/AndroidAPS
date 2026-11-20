@@ -87,6 +87,12 @@ class MedtronicCommunicationManager(
         private const val DEFAULT_TIMEOUT = 2000
         private const val RILEYLINK_TIMEOUT: Long = 15 * 60 * 1000L // 15 min
 
+        /** How long the link listens for the pump after one wake-up burst. The pump answers within about one second. */
+        private const val WAKE_LISTEN_MS = 3000
+
+        /** How long we keep sending wake-up bursts before we report that the pump is unreachable. */
+        private const val WAKE_BUDGET_MS = 90_000L
+
         /** NAK error code: the pump has no history page with the asked number. */
         internal const val NAK_PAGE_DOES_NOT_EXIST = 0x0D
 
@@ -144,12 +150,15 @@ class MedtronicCommunicationManager(
     private fun isDeviceReachable(canPreventTuneUp: Boolean): Boolean {
         val state = medtronicPumpStatus.pumpDeviceState
         if (state !== PumpDeviceState.PumpUnreachable) medtronicPumpStatus.pumpDeviceState = PumpDeviceState.WakingUp
-        for (retry in 0..4) {
+        val started = SystemClock.elapsedRealtime()
+        var retry = 0
+        do {
             aapsLogger.debug(LTag.PUMPCOMM, "isDeviceReachable. Waking pump... " + if (retry != 0) " (retry $retry)" else "")
             val connected = connectToDevice()
             if (connected) return true
             SystemClock.sleep(1000)
-        }
+            retry++
+        } while (SystemClock.elapsedRealtime() - started < WAKE_BUDGET_MS)
         if (state !== PumpDeviceState.PumpUnreachable) medtronicPumpStatus.pumpDeviceState = PumpDeviceState.PumpUnreachable
         if (!canPreventTuneUp) {
             val diff = System.currentTimeMillis() - medtronicPumpStatus.lastConnection
@@ -166,7 +175,7 @@ class MedtronicCommunicationManager(
         // check connection
         val pumpMsgContent = createPumpMessageContent(RLMessageType.ReadSimpleData) // simple
         val rfSpyResponse = rfspy.transmitThenReceive(
-            RadioPacket(rileyLinkUtil, pumpMsgContent), 0.toByte(), 200.toByte(), 0.toByte(), 0.toByte(), 25000, 0.toByte()
+            RadioPacket(rileyLinkUtil, pumpMsgContent), 0.toByte(), 200.toByte(), 0.toByte(), 0.toByte(), WAKE_LISTEN_MS, 0.toByte()
         )
         aapsLogger.info(LTag.PUMPCOMM, "wakeup: raw response is " + ByteUtil.shortHexString(rfSpyResponse?.raw))
         if (rfSpyResponse?.wasTimeout() == true) {

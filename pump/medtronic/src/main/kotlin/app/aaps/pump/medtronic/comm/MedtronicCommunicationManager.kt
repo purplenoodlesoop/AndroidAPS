@@ -90,8 +90,7 @@ class MedtronicCommunicationManager(
         // Wake-up numbers from Loop (MinimedKit): PumpOpsSession.sendWakeUpBurst and isPumpResponding.
         private const val PROBE_LISTEN_MS = 200
         private const val WAKE_BURST_REPEATS = 255
-        private const val FIRST_BURST_LISTEN_MS = 1
-        private const val SECOND_BURST_LISTEN_MS = 12_000
+        private const val BURST_LISTEN_MS = 1
 
         /** NAK error code: the pump has no history page with the asked number. */
         internal const val NAK_PAGE_DOES_NOT_EXIST = 0x0D
@@ -167,15 +166,20 @@ class MedtronicCommunicationManager(
     }
 
     /**
-     * One wake-up try, with the same steps and numbers as Loop (MinimedKit, PumpOpsSession.wakeup):
-     * first a short question, in case the radio of the pump is still on. Then one burst without
-     * listening, because old pumps like the 722 sleep longer between their listening moments.
-     * Then a second burst, and we listen for the answer.
+     * One wake-up try. The steps come from Loop (MinimedKit, PumpOpsSession.wakeup): first a short
+     * question, in case the radio of the pump is still on. Then two bursts, because old pumps like
+     * the 722 sleep longer between their listening moments. Then the short question again.
+     *
+     * Loop listens 12 seconds after the second burst. Its burst is a "power on" packet. Ours is the
+     * "read model" packet, and the 722 mostly did not answer that burst, but it answered a single
+     * question right after it. So we ask, like Loop does with its next message after the bursts
+     * (200 ms window, 3 retries).
      */
     private fun wakeLikeLoop(): Boolean =
         connectToDevice(repeatCount = 0, listenMs = PROBE_LISTEN_MS, retryCount = 1) ||
-            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = FIRST_BURST_LISTEN_MS, retryCount = 0) ||
-            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = SECOND_BURST_LISTEN_MS, retryCount = 0)
+            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = BURST_LISTEN_MS, retryCount = 0) ||
+            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = BURST_LISTEN_MS, retryCount = 0) ||
+            connectToDevice(repeatCount = 0, listenMs = PROBE_LISTEN_MS, retryCount = 3)
 
     private fun connectToDevice(repeatCount: Int, listenMs: Int, retryCount: Int): Boolean {
         val state = medtronicPumpStatus.pumpDeviceState

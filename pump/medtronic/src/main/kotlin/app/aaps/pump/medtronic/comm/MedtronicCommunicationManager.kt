@@ -87,11 +87,11 @@ class MedtronicCommunicationManager(
         private const val DEFAULT_TIMEOUT = 2000
         private const val RILEYLINK_TIMEOUT: Long = 15 * 60 * 1000L // 15 min
 
-        /** How long the link listens for the pump after one wake-up burst. The pump answers within about one second. */
-        private const val WAKE_LISTEN_MS = 3000
-
-        /** How long we keep sending wake-up bursts before we report that the pump is unreachable. */
-        private const val WAKE_BUDGET_MS = 90_000L
+        // Wake-up numbers from Loop (MinimedKit): PumpOpsSession.sendWakeUpBurst and isPumpResponding.
+        private const val PROBE_LISTEN_MS = 200
+        private const val WAKE_BURST_REPEATS = 255
+        private const val FIRST_BURST_LISTEN_MS = 1
+        private const val SECOND_BURST_LISTEN_MS = 12_000
 
         /** NAK error code: the pump has no history page with the asked number. */
         internal const val NAK_PAGE_DOES_NOT_EXIST = 0x0D
@@ -150,15 +150,12 @@ class MedtronicCommunicationManager(
     private fun isDeviceReachable(canPreventTuneUp: Boolean): Boolean {
         val state = medtronicPumpStatus.pumpDeviceState
         if (state !== PumpDeviceState.PumpUnreachable) medtronicPumpStatus.pumpDeviceState = PumpDeviceState.WakingUp
-        val started = SystemClock.elapsedRealtime()
-        var retry = 0
-        do {
+        for (retry in 0..4) {
             aapsLogger.debug(LTag.PUMPCOMM, "isDeviceReachable. Waking pump... " + if (retry != 0) " (retry $retry)" else "")
-            val connected = connectToDevice()
+            val connected = wakeLikeLoop()
             if (connected) return true
             SystemClock.sleep(1000)
-            retry++
-        } while (SystemClock.elapsedRealtime() - started < WAKE_BUDGET_MS)
+        }
         if (state !== PumpDeviceState.PumpUnreachable) medtronicPumpStatus.pumpDeviceState = PumpDeviceState.PumpUnreachable
         if (!canPreventTuneUp) {
             val diff = System.currentTimeMillis() - medtronicPumpStatus.lastConnection
@@ -169,13 +166,24 @@ class MedtronicCommunicationManager(
         return false
     }
 
-    private fun connectToDevice(): Boolean {
+    /**
+     * One wake-up try, with the same steps and numbers as Loop (MinimedKit, PumpOpsSession.wakeup):
+     * first a short question, in case the radio of the pump is still on. Then one burst without
+     * listening, because old pumps like the 722 sleep longer between their listening moments.
+     * Then a second burst, and we listen for the answer.
+     */
+    private fun wakeLikeLoop(): Boolean =
+        connectToDevice(repeatCount = 0, listenMs = PROBE_LISTEN_MS, retryCount = 1) ||
+            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = FIRST_BURST_LISTEN_MS, retryCount = 0) ||
+            connectToDevice(repeatCount = WAKE_BURST_REPEATS, listenMs = SECOND_BURST_LISTEN_MS, retryCount = 0)
+
+    private fun connectToDevice(repeatCount: Int, listenMs: Int, retryCount: Int): Boolean {
         val state = medtronicPumpStatus.pumpDeviceState
 
         // check connection
         val pumpMsgContent = createPumpMessageContent(RLMessageType.ReadSimpleData) // simple
         val rfSpyResponse = rfspy.transmitThenReceive(
-            RadioPacket(rileyLinkUtil, pumpMsgContent), 0.toByte(), 200.toByte(), 0.toByte(), 0.toByte(), WAKE_LISTEN_MS, 0.toByte()
+            RadioPacket(rileyLinkUtil, pumpMsgContent), 0.toByte(), repeatCount.toByte(), 0.toByte(), 0.toByte(), listenMs, retryCount.toByte()
         )
         aapsLogger.info(LTag.PUMPCOMM, "wakeup: raw response is " + ByteUtil.shortHexString(rfSpyResponse?.raw))
         if (rfSpyResponse?.wasTimeout() == true) {
